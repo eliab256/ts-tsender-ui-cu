@@ -5,7 +5,7 @@ import { anvil, sepolia } from "wagmi/chains";
 
 export default getDefaultConfig({
   appName: "TSender",
-  projectId: null,
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [sepolia, anvil],
   ssr: false,
 });
