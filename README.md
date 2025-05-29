@@ -12,3 +12,6 @@ function airdropERC20(
 ```
 
 4. deploy to fleek
+
+install
+npm install react-icons
