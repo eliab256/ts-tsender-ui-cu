@@ -1,5 +1,9 @@
-import Header from "@/components/Header";
+import AirdropForm from "@/components/AirdropForm";
 
 export default function Home() {
-  return <div>Hi</div>;
+  return (
+    <div>
+      <AirdropForm />
+    </div>
+  );
 }
