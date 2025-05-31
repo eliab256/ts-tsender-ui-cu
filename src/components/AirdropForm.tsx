@@ -6,6 +6,11 @@ export default function AirdropForm() {
   const [tokenAddress, setTokenAddress] = useState("");
   const [recepients, setRecepients] = useState("");
   const [amounts, setAmounts] = useState("");
+
+  async function handleSubmit() {
+    console.log("submitting airdrop");
+  }
+
   return (
     <div>
       <InputField label="Token Address" placeholder="0x..." value={tokenAddress} onChange={(e) => setTokenAddress(e.target.value)} />
@@ -23,6 +28,7 @@ export default function AirdropForm() {
         large={true}
         onChange={(e) => setAmounts(e.target.value)}
       />
+      <button onClick={handleSubmit}>Send Tokens</button>
     </div>
   );
 }

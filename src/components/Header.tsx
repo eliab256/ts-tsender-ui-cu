@@ -18,7 +18,7 @@ export default function Header() {
       </div>
 
       <div className="flex items-center space-x-4">
-        <ConnectButton accountStatus="address" />
+        <ConnectButton accountStatus="full" />
       </div>
     </header>
   );
