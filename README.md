@@ -15,3 +15,4 @@ function airdropERC20(
 
 install
 npm install react-icons
+npm install -D vitest
