@@ -6,21 +6,18 @@ import { chainsToTSender, tsenderAbi, erc20Abi } from "@/constants";
 import { useChainId, useConfig, useAccount, useWriteContract } from "wagmi";
 import { readContract, waitForTransactionReceipt } from "@wagmi/core";
 import { calculateTotal } from "@/utils/CalculateTotal/calculateTotal";
-import { type Address  } from "viem";
+import { type Address } from "viem";
 
 export default function AirdropForm() {
-
   const [tokenAddress, setTokenAddress] = useState("");
   const [recipients, setRecipients] = useState("");
   const [amounts, setAmounts] = useState("");
-
 
   const chainId = useChainId();
   const config = useConfig();
   const account = useAccount();
   const total: number = useMemo(() => calculateTotal(amounts), [amounts]);
-  const {data: hash, isPending, writeContractAsync} = useWriteContract();
-
+  const { data: hash, isPending, writeContractAsync } = useWriteContract();
 
   async function getApprovedAmount(tSenderAddress: string | null): Promise<number> {
     if (!tSenderAddress) {
@@ -35,7 +32,6 @@ export default function AirdropForm() {
       args: [account.address, tSenderAddress as Address],
     });
 
-    
     return response as number;
   }
 
@@ -47,7 +43,7 @@ export default function AirdropForm() {
     const tSenderAddress = chainsToTSender[chainId]["tsender"];
     const approvedAmount = await getApprovedAmount(tSenderAddress);
 
-    if(approvedAmount < total) {
+    if (approvedAmount < total) {
       const approvalHash = await writeContractAsync({
         abi: erc20Abi,
         address: tokenAddress as Address,
@@ -55,48 +51,55 @@ export default function AirdropForm() {
         args: [tSenderAddress as Address, BigInt(total)],
       });
       const approvalReceipt = await waitForTransactionReceipt(config, {
-        hash: approvalHash
-       });
-      
+        hash: approvalHash,
+      });
+
       await writeContractAsync({
         abi: tsenderAbi,
         address: tSenderAddress as Address,
         functionName: "airdropERC20",
         args: [
-          tokenAddress,  
-            // Comma or new line separated
-            recipients.split(/[,\n]+/).map(addr => addr.trim()).filter(addr => addr !== ''),
-            amounts.split(/[,\n]+/).map(amt => amt.trim()).filter(amt => amt !== ''),
-            BigInt(total),
+          tokenAddress,
+          // Comma or new line separated
+          recipients
+            .split(/[,\n]+/)
+            .map((addr) => addr.trim())
+            .filter((addr) => addr !== ""),
+          amounts
+            .split(/[,\n]+/)
+            .map((amt) => amt.trim())
+            .filter((amt) => amt !== ""),
+          BigInt(total),
         ],
-      })
+      });
     } else {
-        await writeContractAsync({
-          abi: tsenderAbi,
-          address: tSenderAddress as Address,
-          functionName: "airdropERC20",
-          args: [
-            tokenAddress,  
-              // Comma or new line separated
-              recipients.split(/[,\n]+/).map(addr => addr.trim()).filter(addr => addr !== ''),
-              amounts.split(/[,\n]+/).map(amt => amt.trim()).filter(amt => amt !== ''),
-              BigInt(total),
-          ],
-        })
-      }
+      await writeContractAsync({
+        abi: tsenderAbi,
+        address: tSenderAddress as Address,
+        functionName: "airdropERC20",
+        args: [
+          tokenAddress,
+          // Comma or new line separated
+          recipients
+            .split(/[,\n]+/)
+            .map((addr) => addr.trim())
+            .filter((addr) => addr !== ""),
+          amounts
+            .split(/[,\n]+/)
+            .map((amt) => amt.trim())
+            .filter((amt) => amt !== ""),
+          BigInt(total),
+        ],
+      });
+    }
   }
 
   return (
     <div>
       <div className="pt-[5px]">
-        <InputField 
-          label="Token Address" 
-          placeholder="0x..." 
-          value={tokenAddress} 
-          onChange={(e) => setTokenAddress(e.target.value)} 
-        />
+        <InputField label="Token Address" placeholder="0x..." value={tokenAddress} onChange={(e) => setTokenAddress(e.target.value)} />
       </div>
-  
+
       <div className="pt-[5px]">
         <InputField
           label="Recipients (comma or new line separated)"
@@ -106,7 +109,7 @@ export default function AirdropForm() {
           onChange={(e) => setRecipients(e.target.value)}
         />
       </div>
-  
+
       <div className="pt-[5px]">
         <InputField
           label="Amounts (wei; comma or new line separated)"
@@ -117,13 +120,9 @@ export default function AirdropForm() {
         />
       </div>
       <div className="pt-[5px]">
-        <TransactionDetails
-          tokenAddress={tokenAddress as Address}
-          amountWei={total}
-          amountToken={total / 1e18} 
-        />
+        <TransactionDetails tokenAddress={tokenAddress as Address} amountWei={total} />
       </div>
-  
+
       <div className="pt-[5px]">
         <button
           onClick={handleSubmit}
