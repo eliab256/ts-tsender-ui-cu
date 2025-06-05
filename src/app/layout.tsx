@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function RootLayout(props: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <body className="mx-auto ">
         <Providers>
           <Header />
           {props.children}

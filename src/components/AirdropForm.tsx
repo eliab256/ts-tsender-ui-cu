@@ -1,15 +1,17 @@
 "use client";
 import InputField from "@/components/UI/InputField";
+import TransactionDetails from "@/components/UI/TransactionDetails";
 import { useState, useMemo } from "react";
 import { chainsToTSender, tsenderAbi, erc20Abi } from "@/constants";
-import { useChainId, useConfig, useAccount } from "wagmi";
-import { readContract } from "@wagmi/core";
+import { useChainId, useConfig, useAccount, useWriteContract } from "wagmi";
+import { readContract, waitForTransactionReceipt } from "@wagmi/core";
 import { calculateTotal } from "@/utils/CalculateTotal/calculateTotal";
-type addressType = `0x${string}`;
+import { type Address  } from "viem";
 
 export default function AirdropForm() {
+
   const [tokenAddress, setTokenAddress] = useState("");
-  const [recepients, setRecepients] = useState("");
+  const [recipients, setRecipients] = useState("");
   const [amounts, setAmounts] = useState("");
 
 
@@ -17,6 +19,7 @@ export default function AirdropForm() {
   const config = useConfig();
   const account = useAccount();
   const total: number = useMemo(() => calculateTotal(amounts), [amounts]);
+  const {data: hash, isPending, writeContractAsync} = useWriteContract();
 
 
   async function getApprovedAmount(tSenderAddress: string | null): Promise<number> {
@@ -27,11 +30,12 @@ export default function AirdropForm() {
 
     const response = await readContract(config, {
       abi: erc20Abi,
-      address: tokenAddress as addressType,
+      address: tokenAddress as Address,
       functionName: "allowance",
-      args: [account.address, tSenderAddress as addressType],
+      args: [account.address, tSenderAddress as Address],
     });
 
+    
     return response as number;
   }
 
@@ -42,31 +46,92 @@ export default function AirdropForm() {
     // 3. Wait for the transaction to be mined
     const tSenderAddress = chainsToTSender[chainId]["tsender"];
     const approvedAmount = await getApprovedAmount(tSenderAddress);
+
+    if(approvedAmount < total) {
+      const approvalHash = await writeContractAsync({
+        abi: erc20Abi,
+        address: tokenAddress as Address,
+        functionName: "approve",
+        args: [tSenderAddress as Address, BigInt(total)],
+      });
+      const approvalReceipt = await waitForTransactionReceipt(config, {
+        hash: approvalHash
+       });
+      
+      await writeContractAsync({
+        abi: tsenderAbi,
+        address: tSenderAddress as Address,
+        functionName: "airdropERC20",
+        args: [
+          tokenAddress,  
+            // Comma or new line separated
+            recipients.split(/[,\n]+/).map(addr => addr.trim()).filter(addr => addr !== ''),
+            amounts.split(/[,\n]+/).map(amt => amt.trim()).filter(amt => amt !== ''),
+            BigInt(total),
+        ],
+      })
+    } else {
+        await writeContractAsync({
+          abi: tsenderAbi,
+          address: tSenderAddress as Address,
+          functionName: "airdropERC20",
+          args: [
+            tokenAddress,  
+              // Comma or new line separated
+              recipients.split(/[,\n]+/).map(addr => addr.trim()).filter(addr => addr !== ''),
+              amounts.split(/[,\n]+/).map(amt => amt.trim()).filter(amt => amt !== ''),
+              BigInt(total),
+          ],
+        })
+      }
   }
 
   return (
     <div>
-      <InputField label="Token Address" placeholder="0x..." value={tokenAddress} onChange={(e) => setTokenAddress(e.target.value)} />
-      <InputField
-        label="Recipients (comma or new line separated)"
-        placeholder="0x123...,0x456..."
-        value={recepients}
-        large={true}
-        onChange={(e) => setRecepients(e.target.value)}
-      />
-      <InputField
-        label="Amounts (wei; comma or new line separated)"
-        placeholder="100, 200, 300"
-        value={amounts}
-        large={true}
-        onChange={(e) => setAmounts(e.target.value)}
-      />
-      <button
-        onClick={handleSubmit}
-        className="flex items-center justify-center bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-orange-300 focus:ring-opacity-50"
-      >
-        Send Tokens
-      </button>
+      <div className="pt-[5px]">
+        <InputField 
+          label="Token Address" 
+          placeholder="0x..." 
+          value={tokenAddress} 
+          onChange={(e) => setTokenAddress(e.target.value)} 
+        />
+      </div>
+  
+      <div className="pt-[5px]">
+        <InputField
+          label="Recipients (comma or new line separated)"
+          placeholder="0x123...,0x456..."
+          value={recipients}
+          large={true}
+          onChange={(e) => setRecipients(e.target.value)}
+        />
+      </div>
+  
+      <div className="pt-[5px]">
+        <InputField
+          label="Amounts (wei; comma or new line separated)"
+          placeholder="100, 200, 300"
+          value={amounts}
+          large={true}
+          onChange={(e) => setAmounts(e.target.value)}
+        />
+      </div>
+      <div className="pt-[5px]">
+        <TransactionDetails
+          tokenAddress={tokenAddress as Address}
+          amountWei={total}
+          amountToken={total / 1e18} 
+        />
+      </div>
+  
+      <div className="pt-[5px]">
+        <button
+          onClick={handleSubmit}
+          className="mx-auto flex items-center justify-center bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-orange-300 focus:ring-opacity-50"
+        >
+          Send Tokens
+        </button>
+      </div>
     </div>
   );
 }
